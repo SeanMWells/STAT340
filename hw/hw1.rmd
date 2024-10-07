@@ -1,0 +1,168 @@
+
+---
+title: "STAT340 HW1: Random Variables and R Review"
+output: html_document
+---
+
+
+## Problem 1 (10 points): Generating random variables
+
+Let's use R to generate a single Binomial, Geometric, and Poisson random variable.
+
+You can choose the parameter of the distribution to be anything you like.  
+
+Here are the function names: `rbinom, rgeom, rpois`.
+Remember that the "r" stands for "Random".
+
+### 1a) Read the help files for these functions. What are the 8 headings in each of the help files? 
+
+Reading the help files is hard at first, but it is an essential skill.  Have a look at the help files for these functions. What are the 8 section headings? (hint: description, usage, ...)
+
+```{r}
+?rbinom
+?rgeom
+?rpois
+```
+
+You can type your (short!) answer here: The section headings are as follows: description, usage, arguments, details, value, source, see also, examples.
+
+### 1b) Generate a single copy of each random variable. Once again, you may set parameters however you like.
+
+```{r}
+
+# generate a single Binomial random variable:
+rbinom(n = 1, size = 10, prob = 0.3)
+
+# generate a single Geometric random variable:
+rgeom(n = 1, prob = .07)
+
+# generate a single Poisson random variable:
+rpois(n = 1, lambda = 45:55)
+```
+
+### 1c) Generate ten copies of each random variable.
+
+```{r}
+# generate 10 Binomial random variables:
+rbinom(n = 10, size = 200, prob = 0.3)
+
+# generate 10 Geometric random variables:
+rgeom(n=10, p=0.25)
+
+# generate 10 Poisson random variables:
+rpois(n = 10, lambda = 110:121)
+```
+
+## Problem 2 (10 points): Making histograms
+
+One way to think about random variables is through their "distribution".
+To see what the distributions of different random variables look like, generate 1,000 copies of some random variables (indicated in the code below) and put them in a histogram:
+
+```{r}
+# Exponential:
+hist(rexp(n = 1000, rate=1/5))
+# or 
+library(magrittr)
+rexp(1000, rate=1/5) %>% hist
+
+# Binomial:
+hist(rbinom(n = 1000, size = 50, prob = 0.45))
+
+# Normal:
+hist(rnorm(n= 1000, mean = 37, sd = 4.7))
+```
+
+Repeat the last step, but change the value of the parameter that you put in.  
+
+```{r}
+
+# Exponential:
+hist(rexp(n = 1000, rate = 1))
+# or 
+library(magrittr)
+rexp(10000, rate=1) %>% hist
+
+# Binomial: (change p, not the size parameter)
+hist(rbinom(n = 1000, size = 50, prob = 0.05))
+
+# Binomial: (change the size parameter, not p)
+hist(rbinom(n = 1000, size = 2500000, prob = 0.45))
+
+# Normal: (change the mean, not the standard deviation)
+hist(rnorm(n= 1000, mean = 100, sd = 4.7))
+
+# Normal: (change the standard deviation, not the mean)
+hist(rnorm(n= 1000, mean = 37, sd = 0.7))
+
+```
+
+
+
+## Problem 3 (5 points): What happens to the histogram in Problem 2 above when the parameter gets bigger or smaller?  
+
+Answer in words:
+
+1) Exponential: the histogram "expands out to the right" as the rate decreases.
+2) Binomial (changing p): the histogram becomes skewed to the right as the probability decreases.
+3) Binomial (changing n): the histogram tends to approach a symmetrical shape as the number of trials increase.
+4) Normal (changing mu): the histogram does not change in shape but shifts entirely to the left as the mean decreases.
+5) Normal (changing sigma): the histogram contracts toward the mean as the deviation decreases.
+
+## Problem 4 (10 points): Evaluating probability mass/density functions
+
+Now let's answer the same question, but this time using the built-in R functions for evaluating probability distributions.
+That is, instead of generating random variables to approximate the true distribution, let's evaluate the probability mass or density exactly.
+
+```{r}
+# Exponential, for values k=0,1,2,...,20:
+k <- seq(0,20)
+plot( k, dexp(k,rate=1) )
+
+# Binomial(n=10,p=0.3), for values k=0,1,2,...,9,10:
+k <- seq(0,10)
+plot(k, dbinom(k, size=10, p=0.3))
+
+# Normal(mean=0,sd=1), for x in [-3,3] in increments of size 0.1
+x <- seq(-3,3,0.1)
+# Note that this is a density, not a mass function,
+# but for plotting purposes, we can't evaluate the pdf at
+# EVERY point, so we'll just choose a few.
+plot( x, dnorm(x,mean=0,sd=1))
+
+# Normal(mean=1,sd=2), for x in [-5,7] in increments of size 0.1
+x <- seq(-5,7,0.1)
+plot(x, dnorm(x, mean=1, sd=2))
+```
+
+## Problem 5 (15 points): Defining some simple functions in R.
+
+This is not a programming course, but it's important that you become familiar with some basic programming concepts this semester.
+Toward that end, let's close by getting some practice with function definition in R.
+
+```{r}
+# 5a) Define a function sum_of_normals that takes a single argument n (you may assume that n is a non-negative integer), generates n independent normals with mean 0 and variance 1, and returns their sum.
+# Hint: pay attention to the case n=0. What should be the sum of zero normals?
+sum_of_normals <- function( n ){
+  sum(rnorm(n, mean = 0, sd = 1))
+}
+
+# 5b) Define a function sum_of_poissons that takes two arguments: a non-negative integer n and a positive real lambda.
+# Your function should generate n independent Poisson random variables with shared parameter lambda, and return their sum.
+# You may assume that n is a non-negative integer and lambda is a positive real (i.e., numeric)
+# n and lambda should both default to 1, so that sum_of_poissons(5) returns the sum of five Pois(1) random variables.
+sum_of_poissons <- function( n=1, lambda=1 ) {
+  sum(rpois(n, lambda))
+}
+
+# 5c) Define a function max_of_normals that takes three arguments:
+# a non-negative integer n
+# a real number (i.e., numeric) mu
+# a positive real (i.e., positive numeric) sigma
+# Your function should generate n independent normals with mean and sd given by mu and sigma, respectively, and return the maximum of those n normal RVs.
+# mu should default to 0 and sigma should default to 1. There should be no default value for n.
+# Hint: be careful of the case n=0. By convention, the maximum of an empty set (e.g., the maximum of a collection of zero normals) 
+# By convention, the maximum of an empty set is negative infinity.
+max_of_normals <- function(n=-Inf, mu=0, sigma=1) {
+  max(rnorm(n,mu,sigma))
+}
+```

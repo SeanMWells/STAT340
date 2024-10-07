@@ -1,0 +1,368 @@
+
+---
+title: "STAT340 HW03: Estimation"
+date: "Apr 1, 2022"
+author: "Sean Wells"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Problem 1 (15 points): The infamous mule kick data
+
+The file `mule_kicks.csv`, available for download [here](https://kdlevin-uwstat.github.io/STAT340-Fall2021/hw/03/mule_kicks.csv), contains a simplified version of a very famous data set.
+The data consists of the number of soldiers killed by being kicked by mules or horses each year in a number of different companies in the Prussian army near the end of the 19th century.
+
+This may seem at first to be a very silly thing to collect data about, but it is a very interesting thing to look at if you are interested in rare events.
+Deaths by horse kick were rare events that occurred independently of one another, and thus it is precisely the kind of process that we might expect to obey a Poisson distribution.
+
+Download the data and read it into R by running
+
+```{r}
+download.file('https://kdlevin-uwstat.github.io/STAT340-Fall2021/hw/03/mule_kicks.csv', destfile='mule_kicks.csv')
+mule_kicks <- read.csv('mule_kicks.csv', header=TRUE)
+head(mule_kicks)
+```
+
+`mule_kicks` contains a single column, called `deaths`.
+Each entry is the number of soldiers killed in one corps of the Prussian army in one year.
+There are 14 corps in the data set, studied over 20 years, for a total of 280 death counts.
+
+### Part a: estimating the Poisson rate
+
+Assuming that the mule kicks data follows a Poisson distribution, produce a point estimate for the rate parameter $\lambda$.
+There are no strictly right or wrong answers, here, though there are certainly better or worse ones.
+
+```{r}
+# TODO: uncomment line below and fill it in to estimate the rate parameter
+lambdahat <- 280/20
+```
+
+### Part b
+
+Using everything you know (Monte Carlo, CLT, etc.), construct a confidence interval for the rate parameter $\lambda$.
+Explain in reasonable detail what you are doing and why you are constructing the confidence interval in this way (a few sentences is fine!).
+
+***
+
+The code below will repeat 1000 simulations of Poisson(lambda=14), assuming that to be the true rate parameter lambda, to generate a distribution of the "true" parameter. This will allow us to provide a 95% confidence interval of the rate parameter lambda based upon the "mule_kicks" data set. 
+
+```{r}
+# from lecure notes 5: estimation
+Nrep <- 1000
+replicates <- rep(NA,Nrep) 
+for ( i in 1:Nrep) {
+  fake_data <- rpois(n=80, lambda=lambdahat)
+  replicates[i] <- mean( fake_data )
+}
+
+#confidence interval
+CI <- quantile( replicates, probs=c(0.025, 0.975) )
+cat(CI)
+```
+
+***
+
+### Part c
+
+Here's a slightly more open-ended question.
+We *assumed* that the data followed a Poisson distribution.
+This may or may not be a reasonable assumption.
+Use any and all tools that you know about to assess how reasonable or unreasonable this assumption is.
+
+Once again, there are no strictly right or wrong answers here.
+Explain and defend your decisions and thought processes in a reasonable way and you will receive full credit.
+
+***
+
+I believe that it is a reasonable assumption to use a Poisson distribution to model the situation presented. Because we are measuring a highly unlikely occurrence, and one that is unlikely to change in prevalence/probability over time, it could be safely assumed that the lambda drawn from the sample accurately reflects the true parameter. 
+
+```{r}
+hist(replicates)
+```
+
+Further, plotting the data as a histogram shows that our distribution is not perfectly symmetrical, as is typical of a Poisson variable, although it does display a general bell-shape. 
+
+***
+
+## Problem 2 (15 points): Principal Components Regression
+
+In this problem, we'll see a brief illustration of why PCA is often useful as a preprocessing step in linear regression or as a regression method all its own.
+
+Let's set the stage by considering a regression problem with two predictors $x_1$ and $x_2$ and one response $Y$.
+As a simple example, perhaps $x_1$ is height, $x_2$ is weight, and the response $Y$ is blood pressure.
+
+We try to predict our response $Y$ as a linear function of $x_1$ and $x_2$ (plus an intercept term) 
+$$
+Y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \epsilon,
+$$
+where $\epsilon$ is mean-zero normal noise, independent of the $x$ and $\beta$ terms, with unknown variance $\sigma^2 > 0$.
+
+We can solve multiple linear regression problems almost as easily as we can solve simple linear regression, but a problem can arise if two or more of our predictors are highly correlated.
+
+### Part a: loading the data
+
+The following code downloads a synthetic data set from the course webpage adn loads it into a data frame called `illustrative`.
+
+```{r}
+if(!file.exists("illustrative.csv")){
+  download.file('https://kdlevin-uwstat.github.io/STAT340-Fall2021/hw/04/illustrative.csv', destfile='illustrative.csv')
+}
+illustrative = read.csv('illustrative.csv')
+```
+
+The data frame has three columns: `x1`, `x2` and `y`.
+Here, `y` is a response variable driven by `x1` and `x2`.
+
+```{r}
+head(illustrative)
+```
+
+The problem is, as you'll see, `x1` and `x2` are highly correlated.
+
+Create a pairs plot showing the relation between the three columns in this data frame.
+Briefly describe what you see (a sentence or two is fine).
+
+```{r}
+pairs(illustrative)
+```
+
+***
+
+The pairs plot seems to indicate that there is a relatively strong positive linear relationship between each variable. This can be determined from the discernible trends consistently observed within each individual plot. 
+
+***
+
+Just to drive things home, compute the correlations between each of the three pairs of variables `x1`, `x2` an `y`. The built-in function `cor` will do fine, here, but feel free to explore more if you wish.
+
+```{r}
+cor(illustrative)
+```
+
+### Part b: understanding the issue
+
+To understand the issue, suppose that `y` is determined completely by `x1`, say $Y = \beta_0 + \beta_1 x_1$ for some $\beta_0,\beta_1 \in \mathbb{R}$.
+Then we should expect `x_1` to be a good predictor of `y`, and simply by virtue of `x_1` and `x_2` being correlated, `x_2` will be a very good predictor of `y`, as well.
+
+Fit two regression models: one regressing `y` against `x1` (and an intercept term), the other regressing `y` against `x2` (and an intercept term).
+Compare the two models and their fits.
+Is one better than the other?
+Just a few sentences of explanation is plenty, here.
+
+```{r}
+x1_lm = lm(y~x1, data=illustrative)
+x2_lm = lm(y~x2, data=illustrative)
+```
+
+```{r}
+summary(x1_lm)
+```
+
+```{r}
+summary(x2_lm)
+```
+
+***
+
+Based upon the R-squared values, the linear model fitted to the x1 variable would appear to be slightly better. Roughly 10% more variance in the response variable is accounted for in the first model compared to the second (fitted to x2), and the p-value of the slope is also more statistically significant for the model fitted to x1 (8.52e-12 for x2 vs 2.07e-15).
+
+***
+
+### Part c: residuals of the multivariate model
+
+Now, instead of predicting `y` from just `x1` or just `x_2`, let's consider the model that uses both predictors.
+That is, we will consider a model $Y = \beta_0 + \beta_1 x_1 + \beta_2 x_2$.
+To see the problem with our correlated predictors, we need to be able to see how our model's squared error changes as a function of these coefficients.
+
+Write a function `illustrative_residual( beta0, beta1, beta2 )`, where `beta0`, `beta1` and `beta2` are all numerics, which computes the sum of squared residuals between the observed responses `y` in the data frame `illustrative` and the predicted responses if we predict `y` as 'beta0 + beta1*x_1 + beta2*x_2`.
+That is, for any choice of coefficients `beta0`, `beta1`, `beta2`, your function should return the sum of squared residuals under the model using these coefficients. Something like
+
+$$
+\sum_i \left( y_i - (\beta_0 + \beta_1 x_{i,1} + \beta_2 x_{i,2} )  \right)^2.
+$$
+
+```{r}
+#kept getting variable lengths error with b0, b1... so had to create separate df instead of simply using y ~ b0 + b1*x1 + b2*x2
+illustrative_residual <- function( b0, b1, b2 ) {
+  illustrative_beta = data.frame(
+  b0 = b0, 
+  x1 = b1 * illustrative$x1, 
+  x2 = b2 * illustrative$x2,
+  y = illustrative$y,
+  row.names = NULL
+  )
+  model = lm(y ~ b0 + x1 + x2, data=illustrative_beta)
+  sum(resid(model)^2)
+}
+```
+
+### Part d: ambiguous coefficients
+
+Now, we'll use `illustrative_residual` to get to the heart of the matter.
+Evaluate the sum of squared residuals for different choices of the coefficients `beta0`, `beta1` and `beta2`.
+A natural starting point is to set `beta0` equal to the estimated intercept term from one of the two models fitted in Part (b) above, and either
+
+1. Set `beta1` to the coefficient of `x1` estimated in the `y ~ 1 + x1` model in Part (b) and set `beta2` to 0
+2. Set `beta2` to the coefficient of `x2` estimated in the `y ~ 1 + x2` model in Part (b) and set `beta1` to 0.
+
+Both of these should yield fairly small sum of squared residuals, at least compared with more arbitrary choices of `(beta0,beta1,beta2)`.
+
+```{r}
+coefs = coef(x1_lm)
+beta0 = unname(coefs[1])
+beta1 = unname(coefs[2])
+illustrative_residual(b0=beta0, b1=beta1, b2=0)
+```
+
+```{r}
+coefs = coef(x2_lm)
+beta0 = unname(coefs[1])
+beta2 = unname(coefs[2])
+illustrative_residual(b0=beta0, b1=0, b2=beta2)
+```
+
+Now, the trouble is that since `x1` and `x2` are correlated, there exists a constant $c$ such that $\beta_1 x_{i,1} \approx \beta_1 c x_{i,2}$ for all $i=1,2,\dots,n$.
+So if $y_i = \beta_1 x_{i,1}$ is a good model (i.e., has small squared error),
+$y_i = \beta_2 x_{i,2}$ with $\beta_2 = c \beta_1$ will be a good model, too.
+In the data in data frame `illustrative`, $c=1$.
+Try evaluating the squared residuals with the same choice of `beta0` but with `beta1` set to the coefficient of `x2` from Part (b) (and `beta2` set to $0$).
+Similarly, keep `beta0` as it was and evaluate the squared residuals with `beta2` set to the coefficient of `x1` in Part (b) (and `beta1` set to zero).
+
+```{r}
+beta1 = x2_lm$coefficients[2]
+illustrative_residual(b0=beta0,b1=beta1,b2=0)
+```
+
+```{r}
+b2 = x1_lm$coefficients[2]
+illustrative_residual(b0=beta0,b1=0,b2=beta2)
+```
+
+You should see that all of the suggested settings above yield approximately the same sum of squared residuals (again, at least compared to other more arbitrary choices of coefficients-- there will be random variation!).
+So we have many different estimates of the coefficients that have about the same performance.
+But the problem is even worse than that.
+Continuing to keep `beta0` equal to the intercept in the `y ~ 1 + x1` model from Part (b), let `b` denote the coefficient of `x1` in that model.
+Try changing `beta1` and `beta2` in `illustrative_residual` so that `beta1 + beta2` is approximately equal to `b`.
+You should see that so long as `beta1 + beta2` is approximately `b`, the sum of squared residuals remains small (again compared to "sillier" choices of coefficients).
+
+```{r}
+beta0 = x1_lm$coefficients[1]
+b = unname(x1_lm$coefficients[2])
+beta1 = runif(1, min=-b, max=b)
+beta2 = b - beta1
+illustrative_residual(b0=beta0, b1=beta1, b2=beta2)
+```
+
+So we see that there are a wide range of different choices of coefficients, all of which give comparably good fits to the data.
+The problem is that these different choices of coefficients lead to us making very different conclusions about the data.
+In our example above, different choices of coefficients `beta1` and `beta2` mean blaming either height or weight for increased blood pressure.
+
+### Part e: principal components regression to the rescue
+
+Let's look at one possible solution to the above issue (though hardly the only solution-- see ISLR Sections 3.3.3 and 6.3 for more discussion) using PCA.
+We saw in lecture and in the readings that PCA picks out the directions along which the data varies the most.
+So to avoid the colinearity and correlation issues illustrated in Parts (a) through (d), principal components regression (PCR; not to be confused with [PCR](https://en.wikipedia.org/wiki/Polymerase_chain_reaction) applies principal components analysis to obtain a lower-dimensional representation of the data, in which the data has been projected onto those high-variance directions, and then performs regression on the projected, lower-dimensional data.
+
+Use PCA to extract the first principal component of the two-dimensional data stored in the `x1` and `x2` columns of the `illustrative` data frame, and regress the `y` column against the projection of the `(x1, x2)` data onto this first component.
+
+That is, fit a model that looks something like `y ~ 1 + pc1`.
+
+```{r}
+illustrative_pca = prcomp(illustrative)
+pc1 = illustrative_pca$x[,1]
+model = lm(y ~ 1 + pc1, data=illustrative)
+model
+```
+
+Compute this model's sum of squared residuals and compare to what you saw in Part (d). A sentence or two will suffice.
+
+```{r}
+sum(resid(model)^2)
+```
+
+***
+
+The squared residuals of the model fitted to the first principal component of the data set is significantly lower than the models produced by each variable individually. This suggests that it fits and describes the data much more accurately.
+
+***
+
+## Problem 3 (20 points): Regression
+
+This question uses the `Auto` dataset from the `ISLR` package. Make sure `ISLR` is installed, then run the following.
+
+```{r}
+library(ISLR)
+str(Auto)
+head(Auto)
+```
+
+
+### (a)
+
+[Chapter 3 of ISLR](https://www.statlearning.com/) (page 121 in book, or page 131 in pdf document), question 8(a)i-iii. For 8(a), show the computations of each of these **using both R functions like `lm()` or `resid()` _AND_ manually**:
+
+ - estimates of both the slope and intercept
+ - the mean square error estimate ($\hat{\sigma}^2$)
+ - the standard error of the estimated slope
+
+(manually here means directly using the formulas like demonstrated in class. you are still allowed to use R but no special functions like `lm()` or `resid()`.)
+
+```{r}
+x = Auto$horsepower
+y = Auto$mpg
+numerator = sum((x - mean(x))*((y - mean(y))))
+denominator = sum((x - mean(x))^2)
+slope = numerator/denominator
+intercept = mean(y) - (mean(x)*slope)
+sigma_hatsq = sum((y - (intercept + slope * x))^2)/(nrow(Auto)-2)
+se = sqrt(sigma_hatsq/sum((x-mean(x))^2))
+
+c(slope, intercept, sigma_hatsq, se)
+```
+
+### (b)
+
+Following 8(b), plot the line of best fit through your data.
+
+Looking at the output of `summary()` does there appear to be a significant linear relationship? Explain (provide a $p$-value if possible). What proportion of the variation in the dependent variable is explained by the independent variable?
+
+```{r}
+library(ggplot2)
+
+ggplot(Auto) +
+  geom_point(aes(x=horsepower, y=mpg)) +
+  geom_smooth(aes(x=horsepower, y=mpg), method="lm") +
+  ggtitle(label="Line of best fit")
+```
+
+```{r}
+auto_lm = lm(mpg ~ horsepower, data=Auto)
+summary(auto_lm)
+```
+
+The model suggests that a negative linear relationship does exist between the two variables, although it might not be the strongest model. The p-value of the slope is roughly 2*10^-16, an extremely small and statistically significant value that suggests that the true slope modelling the relationship between horsepower and mpg is equal to some value other than 0. However, only about 60.6% of the variation in the dependent variable is explained by the independent variable which suggests this is not a particularly strong or accurate model.   
+
+### (c)
+
+It can be shown the estimates follow a $t$-distribution with $n-2$ degrees of freedom. Using the estimate and standard error, compute a $95%$ confidence interval for the slope manually (hint: recall from 240 you need to take estimate ± t-critical value * standard error). Compare your interval with the result obtained by running `confint()` on the `lm` object obtained from part (a). Do they agree?
+
+```{r}
+slope + c(-1.96,1.96) * se
+```
+
+```{r}
+confint(auto_lm, level=0.95)
+```
+
+Does this agree with your conclusion from part (b) above?
+
+The results of the manually calculated confidence interval, which is supported by the R function confint(), support the idea that there is indeed some negative linear relationship between the response and explanatory variables. We are 95% confident that the true slope describing the relationship between the horsepower of a car and its mpg is between -0.17 and -0.14, and it almost certainly is not 0 (suggesting no relationship).
+
+### (d)
+
+Following 8(c), evaluate the quality of the fit. What do you observe? Does this model seem like a good fit for the data? Why or why not?
+
+Although the model and related tests suggest that a relationship does exist between the two variables, I wouldn't say that the model is exceptional or particularly accurate. The relatively low R-squared value draws some concerns regarding the variation of the response variable, although a confidence interval and related information strongly suggest that some relationship does indeed exist between the two variables. Overall, I would say that this model is a relatively moderate fit for a data set in which the two variables almost certainly have a negative relationship. 

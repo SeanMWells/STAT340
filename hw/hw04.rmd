@@ -1,0 +1,191 @@
+---
+title: "STAT340 HW04: Models"
+date: "Date"
+author: "Name"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+```
+
+Several problems inspired by ISLR. **Problems are worth 10 points each**
+
+## Question 1
+
+Suppose we have a data set with five predictors, $X_{1}=\text{GPA}$, $X_{2}=\text{IQ}$, $X_{3}=\text{Level ( 1 for College and 0 for High School)}$, $X_{4}=\textrm{Interaction between GPA and IQ}$, and $X_{5}=\text{Interaction between GPA and Level}$. The response is starting salary after graduation (in thousands of dollars). Suppose we use least squares to fit the model, and get $\hat{\beta}_{0}=50$, $\hat{\beta}_{1}=20$, $\hat{\beta}_{2}=0.07$, $\hat{\beta}_{3}=35$, $\hat{\beta}_{4}=0.01$, $\hat{\beta}_{5}=-10$.
+
+a. Which answer is correct, and why?
+   i. For a fixed value of IQ and GPA, high school graduates earn more, on average, than college graduates.
+   ii. For a fixed value of IQ and GPA, college graduates earn more, on average, than high school graduates.
+   iii. For a fixed value of IQ and GPA, high school graduates earn more, on average, than college graduates provided that the GPA is high enough.
+   iv. For a fixed value of IQ and GPA, college graduates earn more, on average, than high school graduates provided that the GPA is high enough.
+   
+iv; As a regression coefficient, having graduated college, assuming that GPA and IQ remain constant, has a significant positive individual effect on starting salary (around 35 thousand dollars). The collective interaction between GPA and education level, however, suggests that as GPA increases, the effect that education level has on salary decreases, hence why GPA would have to be above a certain threshold to have an overall positive relationship on salary. 
+   
+b. Predict the salary of a college graduate with IQ of 110 and a GPA of 4.0.
+
+```{r}
+50 + 20*4 + 0.07*110 + 35 + (0.01*110*4) - (10*4)
+```
+According to this model, the starting salary of a college student graduating with an IQ of 110 and GPA of 4.0 would be roughly $137,100. 
+
+c. True or false: Since the coefficient for the GPA/IQ interaction term is very small, there is very little evidence of an interaction effect. Justify your answer.
+
+False. The magnitude of interaction estimates are typically much smaller than other coefficients. A better way to assess significance would be by examining the p-value for that estimate. 
+
+## Question 2
+
+I collect a set of data ($n=100$ observations) containing a single predictor and a quantitative response. I then fit a linear regression model to the data, as well as a separate cubic regression, i.e. $Y=$ $\beta_{0}+\beta_{1} X+\beta_{2} X^{2}+\beta_{3} X^{3}+\epsilon$
+
+a. Suppose that the true relationship between $X$ and $Y$ is linear, i.e. $Y=\beta_{0}+\beta_{1} X+\epsilon$. Consider the training residual sum of squares (RSS) for the linear regression, and also the training RSS for the cubic regression. Would we expect one to be lower than the other, would we expect them to be the same, or is there not enough information to tell? Justify your answer.
+
+We would expect the training RSS of the cubic regression to be lower, as training RSS can only decrease by adding terms. This does not imply that the cubic model is better overall however. 
+
+b. Answer a. using test rather than training RSS.
+
+Opposite to part a, we would expect the test RSS of a cubic regression to be higher than that of a linear model, seeing as it would be overfitting to the data. 
+
+c. Suppose that the true relationship between $X$ and $Y$ is not linear, but we don't know how far it is from linear. Consider the training RSS for the linear regression, and also the training RSS for the cubic regression. Would we expect one to be lower than the other, would we expect them to be the same, or is there not enough information to tell? Justify your answer.
+
+Similar to part a, we would absolutely expect the training RSS for the cubic regression to be lower in comparison to a linear model. It could be, however, that a cubic regression is over-fitting to the data when a quadratic regression may be more accurate. 
+
+d. Answer (c) using test rather than training RSS.
+
+We do not have enough information to determine which model would have a lower test RSS, we do not know how far from linear the relationship is. 
+
+## Question 3
+
+Suppose we collect data for a group of students in a statistics class with variables $X_{1}=\text{hours studied}$, $X_{2}=\text{undergrad GPA}$, and $Y=\text{receive an A}$. We fit a logistic regression and produce estimated coefficient, $\hat{\beta}_{0}=-6, \hat{\beta}_{1}=0.05, \hat{\beta}_{2}=1$.
+
+a. Estimate the probability that a student who studies for $40\mathrm{h}$ and has an undergrad GPA of $3.5$ gets an A in the class.
+
+```{r}
+p = exp(-6 + 0.05*40 + 3.5)/ (1 + exp(-6 + 0.05*40 + 3.5))
+p
+```
+The probability that this student would receive an A in the class is roughly 37.8 percent.
+
+b. How many hours would the student in part a. need to study to have a $50\%$ chance of getting an A in the class?
+
+```{r}
+(log(1) + 2.5) / 0.05
+```
+The student would need to study 50 hours to have a 50% chance of getting an A.
+
+## Question 4
+
+This question uses the `titanic` data set from the `DALEX` package. This is a **real data set** documenting which passengers on the RMS Titanic survived.
+
+a. Convert the `survived` variable to 0, 1 with 1 indicating a passenger who survived, and fit a logistic regression to predict survival based on all other predictors **except `country` and `embarked`**.
+
+```{r,warning=F,message=F}
+library(DALEX)
+library(glmnet)
+titanic$survived = ifelse(titanic$survived == "yes", 1, 0)
+```
+
+```{r}
+glm.titanic = glm(survived ~ gender + age + class + fare + sibsp + parch, family="binomial", data=titanic)
+summary(glm.titanic)
+```
+
+b. Which variables appear to be significant?
+
+Gender, age, class, and the number of siblings/spouse aboard appear to be the most significant determinants of survival based upon this data set.
+
+c. Interpret the coefficients for `gender`, `age`, and `fare`. Do they appear to correlate with higher or lower odds of survival? How much do the odds of survival appear to change with respect to each of these variables?
+
+```{r}
+exp(-2.6924)
+1 - exp(-0.0379)
+exp(0.00159) - 1
+```
+gender: The model suggests that males have a significantly lower chance of survival compared to females. The coefficient 'gendermale' indicates that males have a 0.068 times odds of survival compared to females. 
+age: The model describes a negative relationship between age and survival. For every increase in one year of age, the model predicts roughly a 3.72% decrease in survival odds.  
+fare: Fare was determined to not be a significant determinant of survival odds, but a positive relationship is expressed in the model nonetheless. A one unit increase in fare associates with a 0.16% increase in survival odds.
+
+d. Do your results from c. make sense with your expectations?
+
+The coefficients of the logistic model absolutely align with what I would expect to see. Women and child most likely would've been a priority to evacuate, shown in the negative correlation that exists between survival and both age and being of the male gender. It is somewhat surprising to see that fare was shown to have no significant positive correlation with survival. I might've expected more costly tickets/higher classes to have higher odds of survival due to conditions/equipment of different areas of the ship, etc. 
+
+## Question 5
+
+This question should be answered using the `Carseats` data set from the `ISLR` package.
+
+a. First, make some visualizations of the data set to help set the stage for the rest of the analysis. Try to pick plots to show that are interesting informative.
+
+```{r}
+library(ISLR)
+```
+
+c. Using some variable selection method (CV, stepwise, LASSO, ridge, or even something else), choose a set of predictors to use to predict `Sales`. Try to find the best model that you can that explains the data well and doesn't have useless predictors.
+
+```{r}
+x = model.matrix(Sales~ .,Carseats)[,-1]
+y = Carseats$Sales
+lm.lasso = glmnet(x,y,alpha=1)
+coef(lm.lasso, s=0.25)
+```
+
+d. Which predictors appear to be the most important or significant in predicting sales? Provide an interpretation of each coefficient in your model. Be careful---some of the variables in the model are qualitative!
+
+This model seems to indicate that the most important predictors of the number of sales of a car seat would be shelve location, advertising, age, price, and competitor's price. 
+
+```{r}
+exp(.0525)
+exp(0.078)
+exp(-0.0676)
+exp(3.369)
+exp(0.712)
+exp(-0.0292)
+```
+
+CompPrice: A one dollar increase in the price of a competitor's car seat associates with a 5% increase in sales.
+Advertising: A one unit increase in the advertising of a competitor's car seat associates with a 8.1% increase in sales.
+Price: A one dollar increase in the price of a car seat associates with a 6.54% decrease in sales.
+ShelveLocGood: When compared to a poor shelve location, having a good shelve location is associated with a roughly 280% increase in sales. 
+ShelveLocMedium: When compared to a poor shelve location, having a medium shelve location is associated with a roughly 103% increase in sales. 
+Age: A one year increase in the age of the car seat associates with a 2.9% decrease in sales.
+
+e. Provide $90\%$ confidence intervals for each coefficient in your model.
+
+-
+
+f. Using cross-validation, estimate the true out-of-sample MSE of your model.
+
+```{r}
+nrows <- nrow(Carseats); # Number of observations in the data
+errors <- data.frame( 'Row'=rep(1:nrows),
+                      'Error'=rep(NA, nrows));
+
+for ( i in 1:nrow(Carseats) ) {
+  train_data <- Carseats[-c(i),]; # Leave out the i-th observation
+  leftout <- Carseats[c(i),]; # the row containing the left-out sample.
+  
+  # Fit the linear model, then evaluate.
+  x = model.matrix(Sales~ .,train_data)[,-1]
+  y = train_data$Sales
+  lm.lasso = glmnet(x,y,alpha=1)
+  
+  Carseats.pred <- predict(lm.lasso, s=0.25, newx=model.matrix(Sales~., leftout)[,-1]);
+  idx <- (errors$Row==i); # Pick out row of the errors df.
+  # record squared error btwn predict and truth
+  errors[idx,]$Error <- (Carseats.pred - leftout$Sales)^2 ; }
+mean(errors$Error)
+```
+Using leave-one-out cross validation on the LASSO model, it appears that the true MSE is roughly 1.92. 
+
+g. Check the residuals. Do you think this is an appropriate model to use? Why or why not?
+
+```{r}
+Carseats$prediction = predict(lm.lasso, s=0.25, newx=model.matrix(Sales~., Carseats)[,c(-1,-13)])
+ggplot(data=Carseats) +
+  geom_point(aes(x=prediction, y=prediction-Sales)) +
+  xlab("Fitted value") +
+  ylab("Residual") +
+  ggtitle("Residuals of LASSO model")
+```
+I would say that this model may not be the best to use. Judging from the evident negative relationship between predicted values and residuals I would say that this model isn't "random" enough to be a fair predictor. 
